@@ -313,3 +313,25 @@ def download_csv(subreddit, save_file, date_max = "2020-01-31", date_min ="2010-
         except:
             print(datetime.now().strftime('%y/%m/%d %H:%M:%S') + ': Pushshift error, trying again in 1s.')
             sleep(1)
+
+def read_subreddits(file,savefile=None, chunksize=1000):
+    """Reads a monthly submission dump by chunks, returning a pandas Series with the count of each subreddit.
+    
+    Args:
+        file (TYPE): file location
+        savefile (None, optional): Saves results to a csv
+        chunksize (int, optional): size of the chunk to read
+    
+    Returns:
+        TYPE: Description
+    """
+
+    subreddits = pd.Series(dtype='float64')
+
+    for chunk in pd.read_json(file, lines = True, chunksize=chunksize):
+        subreddits = subreddits.add(chunk['subreddit'].value_counts(),fill_value=0)
+
+    if savefile is not None:
+        subreddits.to_csv(savefile, header=False)
+
+    return subreddits
