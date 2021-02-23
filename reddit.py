@@ -288,8 +288,7 @@ def download_csv(subreddit, save_file, date_max = "2020-01-31", date_min ="2010-
             df = pd.DataFrame(response.json()['data'])
             #Gets timestamp of the earliest download, adds it to params
             timestamp_downloaded = df['created_utc'].min()
-            params['before'] = timestamp_downloaded
-
+            
             #Gets dataframes id, updates then to 'full format'
             id_full = list(df['id'].apply(lambda x: 't3_' + x))
             subs = praw_session.info(fullnames = id_full)
@@ -303,6 +302,8 @@ def download_csv(subreddit, save_file, date_max = "2020-01-31", date_min ="2010-
             df_praw = pd.DataFrame(data_dict)
             df_updated = pd.merge(left=df, right = df_praw, how='left',left_on='id',right_on='id')
             df_updated.to_csv(save_file, mode='a', index=False, header=file_exists)
+
+            params['before'] = timestamp_downloaded
 
             count = count + 100
             if count % 100000 == 0:
