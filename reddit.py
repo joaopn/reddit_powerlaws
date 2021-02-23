@@ -10,6 +10,10 @@ import requests
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import json
+import praw
+from time import sleep
+import os
 
 """
     TODO
@@ -74,7 +78,7 @@ def download_posts(subreddit, date_min="2019-01-01", date_max = None, fields=['a
 
     return df
 
-def update_praw(df):
+def update_praw(df, auth_file = 'AUTH_user.json'):
 
     """Updates data using praw, adding 'score_updated', 'num_comments_updated', 'upvote_ratio_updated' to df.
     
@@ -93,7 +97,7 @@ def update_praw(df):
     print('0%...', end="")
 
     #Parameters and PASSWORDS
-    with open('AUTH.json') as json_file: 
+    with open(auth_file) as json_file: 
    		params = json.load(json_file) 
 
     #Opens praw session
@@ -237,3 +241,74 @@ def plot_powerlaws(df, ax, xmax=None, xmin=None):
 
 def plot_subscribers(df):
     pass
+
+def download_csv(subreddit, save_file, date_max = "2020-01-31", date_min ="2010-01-01", auth_file = 'AUTH_user.json'):
+
+    """Downloads all posts from a subreddit, continuously updating save_file.
+    
+    Args:
+        subreddit (TYPE): subreddit name
+        save_file (TYPE): place to save the csv file
+        date_max (str, optional): newest date
+        date_min (str, optional): Description
+        auth_file (str, optional): location of the OAUTH2 file with authentication.
+    """
+
+    #PRAW Auth
+    with open(auth_file) as json_file: 
+        params = json.load(json_file) 
+
+    #Opens praw session
+    praw_session = praw.Reddit(client_id=params['client_id'], 
+                     client_secret=params['client_secret'],
+                     password=params['password'], 
+                     user_agent=params['user_agent'],
+                     username=params['username'])
+
+    #Pushshift parameters
+    base_url = "https://api.pushshift.io/reddit/submission/search/"
+    params = {"subreddit": subreddit, "sort": "desc","sort_type": "created_utc", "size": 100, "fields":['author', "created_utc", 'id']}
+
+    #Date timestamps
+    timestamp_max = int(datetime.fromisoformat(date_max).timestamp())
+    timestamp_min = int(datetime.fromisoformat(date_min).timestamp())
+    params['before'] = timestamp_max 
+
+    timestamp_downloaded = timestamp_max
+
+    count = 0
+
+    file_exists = False  if os.path.isfile(save_file) else True
+
+    while timestamp_downloaded > timestamp_min:
+
+        #Requests data and stores it in a dataframe
+        try:
+            response = requests.get(base_url,params=params)
+            df = pd.DataFrame(response.json()['data'])
+            #Gets timestamp of the earliest download, adds it to params
+            timestamp_downloaded = df['created_utc'].min()
+            params['before'] = timestamp_downloaded
+
+            #Gets dataframes id, updates then to 'full format'
+            id_full = list(df['id'].apply(lambda x: 't3_' + x))
+            subs = praw_session.info(fullnames = id_full)
+            data_dict = {'score': [], 'comments':[], 'id':[]}
+
+            for sub in subs:
+                data_dict['score'].append(sub.score)
+                data_dict['comments'].append(sub.num_comments)
+                data_dict['id'].append(sub.id)
+
+            df_praw = pd.DataFrame(data_dict)
+            df_updated = pd.merge(left=df, right = df_praw, how='left',left_on='id',right_on='id')
+            df_updated.to_csv(save_file, mode='a', index=False, header=file_exists)
+
+            count = count + 100
+            if count % 100000 == 0:
+                date_last = datetime.fromtimestamp(timestamp_downloaded).strftime('%y-%m-%d')
+                print(datetime.now().strftime('%y/%m/%d %H:%M:%S')+'{:d} submissions done. Last date: '.format(count) + date_last)
+
+        except:
+            print(datetime.now().strftime('%y/%m/%d %H:%M:%S') + ': Pushshift error, trying again in 1s.')
+            sleep(1)
