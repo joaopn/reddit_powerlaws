@@ -2,11 +2,11 @@
 # @Author: joaopn
 # @Date:   2021-03-02 00:49:46
 # @Last Modified by:   joaopn
-# @Last Modified time: 2021-03-02 01:00:06
+# @Last Modified time: 2021-03-02 06:44:01
+
+import powerlaw
 
 def plot_powerlaws(df, ax, xmax=None, xmin=None):
-
-    import powerlaw
 
     # count = np.array(df[field])
     # fit_obj = powerlaw.Fit(count[count>0], xmax=xmax, xmin=xmin)
