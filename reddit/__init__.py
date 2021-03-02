@@ -2,7 +2,7 @@
 # @Author: joaopn
 # @Date:   2021-03-02 00:42:40
 # @Last Modified by:   joaopn
-# @Last Modified time: 2021-03-02 00:57:17
+# @Last Modified time: 2021-03-02 01:24:54
 
 from datetime import datetime
 from time import sleep
@@ -13,4 +13,4 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json, praw, os
 
-from reddit import analysis, datasets
+from reddit import plotting, pushshift, datasets

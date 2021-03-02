@@ -2,11 +2,15 @@
 # @Author: joaopn
 # @Date:   2021-03-02 00:46:31
 # @Last Modified by:   joaopn
-# @Last Modified time: 2021-03-02 01:00:05
+# @Last Modified time: 2021-03-02 01:27:34
 
 '''
 Module for handling live data from the pushshift API
 '''
+
+from datetime import datetime
+import pandas as pd
+import requests
 
 def update_praw(df, auth_file = 'AUTH_user.json'):
 
