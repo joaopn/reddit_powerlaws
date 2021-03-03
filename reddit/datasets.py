@@ -2,7 +2,7 @@
 # @Author: joaopn
 # @Date:   2021-03-02 00:44:06
 # @Last Modified by:   joaopn
-# @Last Modified time: 2021-03-02 13:44:10
+# @Last Modified time: 2021-03-03 14:39:49
 
 '''
 Module for handling the reddit data dump available at https://files.pushshift.io/reddit/
@@ -45,7 +45,7 @@ def split_subreddits(file, subreddit_list, save_path, fields, chunksize=1000):
 
 	pass
 
-def subreddits_hdf5(file, savefile, chunksize=10000, drop_stickied = True):
+def subreddits_hdf5(file, savefile, chunksize=100000, drop_stickied = True):
 	"""Parses a submission dump dataset into an HDF5 file, where each group is a subreddit.
 	
 	Args:
@@ -61,6 +61,8 @@ def subreddits_hdf5(file, savefile, chunksize=10000, drop_stickied = True):
 
 	field_dtypes = {'subreddit':str, 'author':str, 'domain':str, 'created_utc':int,'num_comments':int, 'score':int, 'id':str}
 
+	save_obj = pd.HDFStore(savefile,mode='a', complevel=9)
+
 	for df in pd.read_json(file, lines = True, chunksize=chunksize, dtype=field_dtypes):
 
 		#Drops stickied sub
@@ -72,6 +74,4 @@ def subreddits_hdf5(file, savefile, chunksize=10000, drop_stickied = True):
 
 		#Adds data to df
 		for subreddit in df['subreddit'].unique():
-			df[df['subreddit'] == subreddit].to_hdf(savefile, '/' + subreddit, complevel=9, append=True, min_itemsize=255)
-
-
+			save_obj.put('/' + subreddit, df[df['subreddit'] == subreddit], append=True, format='table', min_itemsize=255)
