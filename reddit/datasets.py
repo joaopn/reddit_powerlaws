@@ -2,7 +2,7 @@
 # @Author: joaopn
 # @Date:   2021-03-02 00:44:06
 # @Last Modified by:   joaopn
-# @Last Modified time: 2021-03-05 22:24:02
+# @Last Modified time: 2021-03-06 14:48:27
 
 '''
 Module for handling the reddit data dump available at https://files.pushshift.io/reddit/
@@ -10,6 +10,7 @@ Module for handling the reddit data dump available at https://files.pushshift.io
 
 import pandas as pd
 import h5py
+import numpy as np
 
 def count_subreddits(file, savefile=None, chunksize=1000):
 	"""Reads a monthly submission dump by chunks, returning a pandas Series with the count of each subreddit.
@@ -93,3 +94,45 @@ def subreddits_hdf5(file, savefile, chunksize=100000, mem_limit = 1000, drop_sti
 	#Closes object
 	save_obj.close()
 
+def submission_filenames(years=None, path = None, termination = None):
+    """Returns a list of filename paths for datasets up to 06/2005-07/2019.
+    
+    Args:
+        years (optional): list of years to load (None for all)
+        path (str, optional): path to dataset
+        termination (str, optional): file termination
+    
+    Returns:
+        TYPE: list of filepaths
+    """
+
+    if years is None:
+    	years = np.arange(2005,2020)
+
+    filenames = []
+
+    for year in years:
+
+    	if year == 2005:
+    		month_range = np.arange(6,13)
+    	elif year == 2019:
+    		month_range = np.arange(1,8)
+    	else:
+    		month_range = np.arange(1,13)
+
+    	if year > 2010:
+    		name_base = 'RS'
+    	else:
+    		name_base = 'RS_v2'
+
+    	for month in month_range:
+
+    		str_file = '{:s}_{:d}-{:02d}'.format(name_base,year,month)
+    		if path is not None:
+    			str_file = path + str_file
+    		if termination is not None:
+    			str_file = str_file + termination
+
+    		filenames.append(str_file)
+
+    return filenames
