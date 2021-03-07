@@ -2,11 +2,45 @@
 # @Author: joaopn
 # @Date:   2021-03-02 00:49:46
 # @Last Modified by:   joaopn
-# @Last Modified time: 2021-03-02 06:44:01
+# @Last Modified time: 2021-03-07 16:18:35
 
-import powerlaw
+import powerlaw as plw
+import seaborn as sns
+from reddit import pushshift
+import matplotlib.pyplot as plt
+import numpy as np
 
-def plot_powerlaws(df, ax, xmax=None, xmin=None):
+def powerlaw(data, ax = None, show_fit = True, title = None, xlabel = None):
+
+    """Plots the probability distribution of data with a power-law fit
+    
+    Args:
+        data (float): list/numpy array of observations
+        ax (None, optional): ax to plot the distribution
+        show_fit (bool, optional): whether to show the power-law fit
+        title (None, optional): plot title
+        xlabel (None, optional): plot xlabel
+    """ 
+    if ax is None:
+        ax = plt.gca()
+
+    #Plots data
+    data_nonzero = data[data>0]
+    pl_obj = plw.Fit(data_nonzero,xmin=1)
+    str_label = r'N = {:0.0f}, R = {:0.1f}'.format(data_nonzero.size,np.sum(data_nonzero)/data_nonzero.size)
+    pl_obj.plot_pdf(ax=ax, **{'label':str_label})
+
+    if show_fit:
+        str_label_fit = r'$\alpha$ = {:0.3f}'.format(pl_obj.power_law.alpha)
+        pl_obj.power_law.plot_pdf(ax=ax,color='k', linestyle='--', **{'label':str_label_fit})
+
+    #Beautifies plot
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel('Probability')
+    ax.legend()
+
+def powerlaws_df(df, ax, xmax=None, xmin=None):
 
     # count = np.array(df[field])
     # fit_obj = powerlaw.Fit(count[count>0], xmax=xmax, xmin=xmin)
@@ -18,13 +52,13 @@ def plot_powerlaws(df, ax, xmax=None, xmin=None):
     n_comm = np.array(df['num_comments_updated'])
     score = np.array(df['score_updated'])
 
-    fit_ncomm = powerlaw.Fit(n_comm[n_comm>0], xmax=1e3, xmin=1)
+    fit_ncomm = plw.Fit(n_comm[n_comm>0], xmax=1e3, xmin=1)
     str_label = r'comments, $\alpha$ = {:0.3f}'.format(fit_ncomm.power_law.alpha)
     fit_ncomm.plot_pdf(ax=ax,color='b', **{'label':str_label})
     fit_ncomm.power_law.plot_pdf(ax=ax,color='b', linestyle='--')
    #str_alpha_ncomm = r'$\alpha$ = {:0.3f}'.format(fit_ncomm.power_law.alpha)
 
-    fit_score = powerlaw.Fit(score[score>0],  xmax=1e4, xmin=10)
+    fit_score = plw.Fit(score[score>0],  xmax=1e4, xmin=10)
     str_label = r'score, $\alpha$ = {:0.3f}'.format(fit_score.power_law.alpha)
     fit_score.plot_pdf(ax=ax,color='r', **{'label':str_label})
     fit_score.power_law.plot_pdf(ax=ax,color='r', linestyle='--')
@@ -32,7 +66,7 @@ def plot_powerlaws(df, ax, xmax=None, xmin=None):
 
     plt.legend()
 
-def plot_subreddits(subreddit_list, date_min, date_max = None):
+def subreddits_live(subreddit_list, date_min, date_max = None):
     """Downloads and analyzes subreddit data from a list of subreddits, in a certain timeframe.
     
     Args:
@@ -45,11 +79,11 @@ def plot_subreddits(subreddit_list, date_min, date_max = None):
     #Downloads data
     for subreddit in subreddit_list:
         print('Downloading data for r/' + subreddit)
-        df = df.append(download_posts(subreddit, date_min, date_max, fields=None), sort=True)
+        df = df.append(pushshift.download_posts(subreddit, date_min, date_max, fields=None), sort=True)
 
     #Updates all using praw
     print('Updating scores and comments')
-    df = update_praw(df)
+    df = pushshift.update_praw(df)
 
     #Plots scatterplots
     print('Plotting results')
