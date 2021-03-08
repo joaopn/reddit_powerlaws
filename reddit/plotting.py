@@ -2,7 +2,7 @@
 # @Author: joaopn
 # @Date:   2021-03-02 00:49:46
 # @Last Modified by:   joaopn
-# @Last Modified time: 2021-03-07 16:18:35
+# @Last Modified time: 2021-03-08 01:46:48
 
 import powerlaw as plw
 import seaborn as sns
@@ -10,7 +10,7 @@ from reddit import pushshift
 import matplotlib.pyplot as plt
 import numpy as np
 
-def powerlaw(data, ax = None, show_fit = True, title = None, xlabel = None):
+def powerlaw(data, ax = None, show_fit = True, xmin = 1):
 
     """Plots the probability distribution of data with a power-law fit
     
@@ -24,21 +24,21 @@ def powerlaw(data, ax = None, show_fit = True, title = None, xlabel = None):
     if ax is None:
         ax = plt.gca()
 
+    #Varies fitting method based on package recomendation
+    if xmin > 6:
+        estimate_discrete = True
+    else:
+        estimate_discrete = False
+
     #Plots data
     data_nonzero = data[data>0]
-    pl_obj = plw.Fit(data_nonzero,xmin=1)
+    pl_obj = plw.Fit(data_nonzero,xmin=xmin, estimate_discrete=estimate_discrete)
     str_label = r'N = {:0.0f}, R = {:0.1f}'.format(data_nonzero.size,np.sum(data_nonzero)/data_nonzero.size)
-    pl_obj.plot_pdf(ax=ax, **{'label':str_label})
+    pl_obj.plot_pdf(ax=ax, original_data = True, **{'label':str_label})
 
     if show_fit:
         str_label_fit = r'$\alpha$ = {:0.3f}'.format(pl_obj.power_law.alpha)
         pl_obj.power_law.plot_pdf(ax=ax,color='k', linestyle='--', **{'label':str_label_fit})
-
-    #Beautifies plot
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel('Probability')
-    ax.legend()
 
 def powerlaws_df(df, ax, xmax=None, xmin=None):
 
