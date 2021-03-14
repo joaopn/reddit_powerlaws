@@ -4,13 +4,38 @@
 # @Last Modified by:   joaopn
 # @Last Modified time: 2021-03-06 14:48:27
 
-'''
-Module for handling the reddit data dump available at https://files.pushshift.io/reddit/
-'''
+"""
+Module for handling the reddit data, both the data dump (available at https://files.pushshift.io/reddit/) and the
+processed hdf5 files.
+"""
 
-import pandas as pd
-import h5py
 import numpy as np
+import pandas as pd
+
+def load_data(subreddit, data_location, year_range, fields=['num_comments']):
+	"""
+	Loads data from the hdf5 files for a single subreddit
+	Args:
+		subreddit:
+		data_location
+		year_range:
+	Returns:
+
+	"""
+
+	YEAR_MIN, YEAR_MAX = year_range
+
+	file_location = submission_filenames(np.arange(YEAR_MIN, YEAR_MAX + 1), path=data_location)
+
+	data_list = list()
+
+	for str_data in file_location:
+		try:
+			data_list.append(pd.read_hdf(str_data, subreddit, columns=fields))
+		except:
+			pass
+
+	return pd.concat(data_list, ignore_index=True)
 
 def count_subreddits(file, savefile=None, chunksize=1000):
 	"""Reads a monthly submission dump by chunks, returning a pandas Series with the count of each subreddit.
@@ -26,113 +51,117 @@ def count_subreddits(file, savefile=None, chunksize=1000):
 
 	subreddits = pd.Series(dtype='float64')
 
-	for chunk in pd.read_json(file, lines = True, chunksize=chunksize):
-		subreddits = subreddits.add(chunk['subreddit'].value_counts(),fill_value=0)
+	for chunk in pd.read_json(file, lines=True, chunksize=chunksize):
+		subreddits = subreddits.add(chunk['subreddit'].value_counts(), fill_value=0)
 
 	if savefile is not None:
 		subreddits.to_csv(savefile, header=False)
 
 	return subreddits
 
-def subreddits_hdf5(file, savefile, chunksize=100000, mem_limit = 1000, drop_stickied = True):
+def subreddits_hdf5(file, savefile, chunksize=100000, mem_limit=1000, drop_stickied=True):
 	"""Parses a submission dump dataset into an HDF5 file, where each group is a subreddit.
 	
 	Args:
 		file (str): file location
 		savefile (str): savefile location
-		fields (str): fields to preserve
 		chunksize (int, optional): Chunksize to read the json file
+		mem_limit (int, optional): size of the memory cache before dumping to disk
 		drop_stickied (bool, optional): Whether to drop stickied submissions (default True)
 	"""
 
-	#Fixed parameters
-	fields = ['subreddit', 'author', 'domain', 'created_utc','num_comments', 'score', 'id']
-	field_dtypes = {'subreddit':str, 'author':str, 'domain':str, 'created_utc':int,'num_comments':int, 'score':int, 'id':str}
+	# Fixed parameters
+	fields = ['subreddit', 'author', 'domain', 'created_utc', 'num_comments', 'score', 'id']
+	field_dtypes = {'subreddit': str, 'author': str, 'domain': str, 'created_utc': int, 'num_comments': int,
+	                'score': int, 'id': str}
 
-	#File object
-	save_obj = pd.HDFStore(savefile,mode='a', complevel=9)
+	# File object
+	save_obj = pd.HDFStore(savefile, mode='a', complevel=9)
 
-	#Stores caching data
+	# Stores caching data
 	results_list = []
 	mem_used = 0
 
-	for df in pd.read_json(file, lines = True, chunksize=chunksize, dtype=field_dtypes):
+	for df in pd.read_json(file, lines=True, chunksize=chunksize, dtype=field_dtypes):
 
-		#Drops stickied sub
+		# Drops stickied sub
 		if drop_stickied and 'stickied' in df.keys():
 			df.drop(df[df['stickied']].index, inplace=True)
 
-		#Drops other columns
+		# Drops other columns
 		df = df[fields]
 
-		#Adds caching data
-		mem_used += df.memory_usage().sum()/1024/1024
+		# Adds caching data
+		mem_used += df.memory_usage().sum() / 1024 / 1024
 		results_list.append(df)
 
-		#Dumps data if mem_used > mem_limit
+		# Dumps data if mem_used > mem_limit
 		if mem_used > mem_limit:
 
 			df = pd.concat(results_list)
 			grouped_df = df.groupby('subreddit')
 
 			for subreddit in df['subreddit'].unique():
-				save_obj.put('/' + subreddit, grouped_df.get_group(subreddit), append=True, format='table', min_itemsize=255)
+				save_obj.put('/' + subreddit, grouped_df.get_group(subreddit), append=True, format='table',
+				             min_itemsize=255)
 
 			results_list = []
 			mem_used = 0
-			last_saved = True #ugly hack because python lacks an iterator check
+			last_saved = True  # ugly hack because python lacks an iterator check
 		else:
 			last_saved = False
 
-	#Saves last piece of data
+	# Saves last piece of data
 	if last_saved is False:
 		df = pd.concat(results_list)
 		grouped_df = df.groupby('subreddit')
 		for subreddit in df['subreddit'].unique():
-			save_obj.put('/' + subreddit, grouped_df.get_group(subreddit), append=True, format='table', min_itemsize=255)
+			save_obj.put('/' + subreddit, grouped_df.get_group(subreddit), append=True, format='table',
+			             min_itemsize=255)
 
-	#Closes object
+	# Closes object
 	save_obj.close()
 
-def submission_filenames(years=None, path = None, termination = None):
-    """Returns a list of filename paths for datasets up to 06/2005-07/2019.
-    
-    Args:
-        years (optional): list of years to load (None for all)
-        path (str, optional): path to dataset
-        termination (str, optional): file termination
-    
-    Returns:
-        TYPE: list of filepaths
-    """
 
-    if years is None:
-    	years = np.arange(2005,2020)
+def submission_filenames(years=None, path=None, termination=None):
+	"""Returns a list of filename paths for datasets up to 06/2005-07/2019.
 
-    filenames = []
+	Args:
+		years (optional): list of years to load (None for all)
+		path (str, optional): path to dataset
+		termination (str, optional): file termination
 
-    for year in years:
+	Returns:
+		TYPE: list of filepaths
+	"""
 
-    	if year == 2005:
-    		month_range = np.arange(6,13)
-    	elif year == 2019:
-    		month_range = np.arange(1,8)
-    	else:
-    		month_range = np.arange(1,13)
+	if years is None:
+		years = np.arange(2005, 2020)
 
-    	if year > 2010:
-    		name_base = 'RS'
-    	else:
-    		name_base = 'RS_v2'
+	filenames = []
 
-    	for month in month_range:
+	for year in years:
 
-    		str_file = '{:s}_{:d}-{:02d}'.format(name_base,year,month)
-    		if path is not None:
-    			str_file = path + str_file
-    		if termination is not None:
-    			str_file = str_file + termination
+		if year == 2005:
+			month_range = np.arange(6, 13)
+		elif year == 2019:
+			month_range = np.arange(1, 8)
+		else:
+			month_range = np.arange(1, 13)
 
-    		filenames.append(str_file)
+		if year > 2010:
+			name_base = 'RS'
+		else:
+			name_base = 'RS_v2'
 
-    return filenames
+		for month in month_range:
+
+			str_file = '{:s}_{:d}-{:02d}'.format(name_base, year, month)
+			if path is not None:
+				str_file = path + str_file
+			if termination is not None:
+				str_file = str_file + termination
+
+			filenames.append(str_file)
+
+	return filenames
