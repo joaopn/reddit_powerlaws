@@ -11,6 +11,7 @@ processed hdf5 files.
 
 import numpy as np
 import pandas as pd
+import tables
 
 def load_data(subreddit, data_location, year_range, fields=['num_comments']):
 	"""
@@ -58,6 +59,31 @@ def count_subreddits(file, savefile=None, chunksize=1000):
 		subreddits.to_csv(savefile, header=False)
 
 	return subreddits
+
+def count_subreddits_h5(file, savefile):
+	"""
+	Returns a dataframe of number of submissions and total comments for all subreddits in the h5 file.
+	Args:
+		file (str): file location
+
+	Returns:
+		DataFrame of [subreddits, submissions, comments
+	"""
+	load_obj = pd.HDFStore(file, mode='r', complevel=9)
+	subreddits = load_obj.keys()
+	if '/' in subreddits:
+		subreddits.remove('/')
+	load_obj.close()
+
+	a = tables.open_file(file,'r')
+
+	data_list = []
+	for subreddit in subreddits:
+		data = a.root[subreddit].table.read(field='values_block_0')[:,1] #hardcoded position of comments
+		data_list.append({'name': subreddit[1:], 'submissions': data.size, 'comments': data.sum()})
+
+	df = pd.DataFrame(data_list)
+	df.to_csv(savefile, index=False)
 
 def subreddits_hdf5(file, savefile, chunksize=100000, mem_limit=1000, drop_stickied=True):
 	"""Parses a submission dump dataset into an HDF5 file, where each group is a subreddit.
@@ -123,11 +149,11 @@ def subreddits_hdf5(file, savefile, chunksize=100000, mem_limit=1000, drop_stick
 	save_obj.close()
 
 
-def submission_filenames(years=None, path=None, termination=None):
+def submission_filenames(years=None, path=None, termination=None, last_data = [2020,4]):
 	"""Returns a list of filename paths for datasets up to 06/2005-07/2019.
 
 	Args:
-		years (optional): list of years to load (None for all)
+		years (optional): tuple of years to load (None for all)
 		path (str, optional): path to dataset
 		termination (str, optional): file termination
 
@@ -137,6 +163,8 @@ def submission_filenames(years=None, path=None, termination=None):
 
 	if years is None:
 		years = np.arange(2005, 2020)
+	else:
+		years = np.arange(years[0], years[1]+1)
 
 	filenames = []
 
@@ -144,8 +172,8 @@ def submission_filenames(years=None, path=None, termination=None):
 
 		if year == 2005:
 			month_range = np.arange(6, 13)
-		elif year == 2019:
-			month_range = np.arange(1, 8)
+		elif year == last_data[0]:
+			month_range = np.arange(1, last_data[1]+1)
 		else:
 			month_range = np.arange(1, 13)
 

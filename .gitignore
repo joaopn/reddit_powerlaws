@@ -131,3 +131,9 @@ dmypy.json
 AUTH_user.json
 
 .idea/
+
+notebooks
+
+figures
+
+data
