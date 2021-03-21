@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import tables
 
+
 def load_data(subreddit, data_location, year_range, fields=['num_comments']):
 	"""
 	Loads data from the hdf5 files for a single subreddit
@@ -38,6 +39,7 @@ def load_data(subreddit, data_location, year_range, fields=['num_comments']):
 
 	return pd.concat(data_list, ignore_index=True)
 
+
 def count_subreddits(file, savefile=None, chunksize=1000):
 	"""Reads a monthly submission dump by chunks, returning a pandas Series with the count of each subreddit.
 	
@@ -60,6 +62,7 @@ def count_subreddits(file, savefile=None, chunksize=1000):
 
 	return subreddits
 
+
 def count_subreddits_h5(file, savefile):
 	"""
 	Returns a dataframe of number of submissions and total comments for all subreddits in the h5 file.
@@ -69,21 +72,39 @@ def count_subreddits_h5(file, savefile):
 	Returns:
 		DataFrame of [subreddits, submissions, comments
 	"""
+
 	load_obj = pd.HDFStore(file, mode='r', complevel=9)
 	subreddits = load_obj.keys()
 	if '/' in subreddits:
 		subreddits.remove('/')
-	load_obj.close()
 
-	a = tables.open_file(file,'r')
-
+	a = tables.open_file(file, 'r')
 	data_list = []
 	for subreddit in subreddits:
-		data = a.root[subreddit].table.read(field='values_block_0')[:,1] #hardcoded position of comments
+
+		# Gets actual hdf data location subreddis
+		# Slower, but safer than assuming they are all the same (pandas is weird)
+		for i in range(0, 9):
+			try:
+				str_block = 'values_block_{:d}_kind'.format(i)
+				block_vars = load_obj.get_storer(subreddit).table.attrs[str_block]
+				if 'num_comments' in block_vars:
+					str_block_load = 'values_block_{:d}'.format(i)
+					comments_id = block_vars.index('num_comments')
+					break
+			except:
+				pass
+
+		# Actually loads the data using pytables (faster)
+		data = a.root[subreddit].table.read(field=str_block_load)[:, comments_id]
 		data_list.append({'name': subreddit[1:], 'submissions': data.size, 'comments': data.sum()})
+
+	load_obj.close()
+	a.close()
 
 	df = pd.DataFrame(data_list)
 	df.to_csv(savefile, index=False)
+
 
 def subreddits_hdf5(file, savefile, chunksize=100000, mem_limit=1000, drop_stickied=True):
 	"""Parses a submission dump dataset into an HDF5 file, where each group is a subreddit.
@@ -149,7 +170,7 @@ def subreddits_hdf5(file, savefile, chunksize=100000, mem_limit=1000, drop_stick
 	save_obj.close()
 
 
-def submission_filenames(years=None, path=None, termination=None, last_data = [2020,4]):
+def submission_filenames(years=None, path=None, termination=None, last_data=[2020, 4]):
 	"""Returns a list of filename paths for datasets up to 06/2005-07/2019.
 
 	Args:
@@ -164,7 +185,7 @@ def submission_filenames(years=None, path=None, termination=None, last_data = [2
 	if years is None:
 		years = np.arange(2005, 2020)
 	else:
-		years = np.arange(years[0], years[1]+1)
+		years = np.arange(years[0], years[1] + 1)
 
 	filenames = []
 
@@ -173,7 +194,7 @@ def submission_filenames(years=None, path=None, termination=None, last_data = [2
 		if year == 2005:
 			month_range = np.arange(6, 13)
 		elif year == last_data[0]:
-			month_range = np.arange(1, last_data[1]+1)
+			month_range = np.arange(1, last_data[1] + 1)
 		else:
 			month_range = np.arange(1, 13)
 
