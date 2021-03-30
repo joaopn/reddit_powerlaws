@@ -171,7 +171,7 @@ def subreddits_hdf5(file, savefile, chunksize=100000, mem_limit=1000, drop_stick
 
 
 def submission_filenames(years=None, path=None, termination=None, last_data=[2020, 4]):
-	"""Returns a list of filename paths for datasets up to 06/2005-07/2019.
+	"""Returns a list of filename paths for datasets up to last_data.
 
 	Args:
 		years (optional): tuple of years to load (None for all)
@@ -184,8 +184,6 @@ def submission_filenames(years=None, path=None, termination=None, last_data=[202
 
 	if years is None:
 		years = np.arange(2005, 2020)
-	else:
-		years = np.arange(years[0], years[1] + 1)
 
 	filenames = []
 
