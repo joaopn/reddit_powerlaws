@@ -3,6 +3,7 @@ Module with functions to interface with and maintain the dataset MongoDB databas
 """
 
 from pymongo import MongoClient
+import numpy as np
 
 def get_num_comments(subreddit, db='pushshift', collection='submissions', batch_size=1000000, db_address=
 '127.0.0.1:27017'):
@@ -23,7 +24,7 @@ def get_num_comments(subreddit, db='pushshift', collection='submissions', batch_
 	result = client[db][collection].find(filter={'subreddit': subreddit}, projection={'num_comments': 1, '_id': 0},
 	                                     batch_size=batch_size)
 	result_list = list(result)
-	return [x['num_comments'] for x in result_list]
+	return np.array([x['num_comments'] for x in result_list])
 
 
 def update_subreddit_count(db='pushshift', collection='submissions', db_address='127.0.0.1:27017'):
