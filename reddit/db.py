@@ -5,6 +5,21 @@ Module with functions to interface with and maintain the dataset MongoDB databas
 from pymongo import MongoClient
 import numpy as np
 
+def add_collection(collection, db, db_address=
+'127.0.0.1:27017'):
+	"""
+	Ensures a collection is created with the proper configuration options.
+	Args:
+		collection (str): collection name
+		db (str): DB name
+		db_address (str): IP address of the DB
+
+	Returns:
+		None
+	"""
+	client = MongoClient('mongodb://' + db_address)
+	client[db].create_collection(collection, storageEngine={'wiredTiger': {'configString': "block_compressor=zstd"}})
+
 def get_num_comments(subreddit, db='pushshift', collection='submissions', batch_size=1000000, db_address=
 '127.0.0.1:27017'):
 	"""
