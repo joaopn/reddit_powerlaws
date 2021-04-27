@@ -101,7 +101,7 @@ def add_subreddit_statistics(db='reddit', collection='submissions', db_address='
 	client[db][collection].aggregate(pipeline, **{'allowDiskUse': True})
 
 
-def get_subreddit_statisics(db='reddit', collection='submissions', batch_size=1000000, db_address='127.0.0.1:27017'):
+def get_subreddit_statistics(db='reddit', collection='submissions', batch_size=1000000, db_address='127.0.0.1:27017'):
 	"""
 	Gets the DB statistics from [collection]_statistics, which stores # of submissions and comments in the subreddit.
 	Args:
